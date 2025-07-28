@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steganography Tool</title>
+    <style>
+        *{
+            font-family:'Poppins', sans-serif;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            justify-content: space-around;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(to right, #5fecff, #7b88fe);
+            background-repeat: no-repeat;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* Align both sections at the top */
+            width: 80%;
+            max-width: 1200px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-bottom:5px;
+        }
+
+        .esection, .dsection {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Align content at the top */
+            align-items: center;
+        }
+
+        h2 {
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .output {
+            display: none; /* Hide output section initially */
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            display: none;        
+        }
+
+        label {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px;
+            width: 140px;
+            border-radius: 2px;
+            text-decoration: wavy;
+            border: 1px solid rgb(8, 8, 200);
+            margin: 2%;
+        }
+
+        label:hover {
+            color: #7b88fe;
+            border: 2px dashed rgb(68, 68, 206);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #e45fff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(to left, #5fecff, #7b88fe);
+        }
+
+        textarea {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        @media (max-width : 480px) {
+            .container{
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            body{
+            background: linear-gradient(to right, #5fecff, #7b88fe);
+
+         }
+        }
+    </style>
+</head>
+<body>
+    <center>
+        <h2 style="color: white; font-size: 28px;">Steganography Tool</h2>
+        <div class="container">
+            <!-- Encoding Section -->
+            <div class="esection">
+                <h2>Encode Message</h2>
+                <input type="file" id="imageInput" accept="image/*">
+                <label for="imageInput">Upload File</label>
+                <span id="imageFileName" class="file-name"></span> <!-- File name display -->
+                <textarea id="messageInput" rows="4" minlength='5'placeholder="Enter message to encode"></textarea>
+                <button id="encodeButton" style="margin-top: 4%;">Encode</button>
+                <div class="output" id="outputContainer">
+                    <h3>Encoded Image Data:</h3>
+                    <p id="encodedData"></p>
+                    <button id="downloadButton" style="display: none;">Download Encoded Image</button>
+                </div>
+            </div>
+            <hr><hr>
+            <!-- Decoding Section -->
+            <div class="dsection">
+                <h2>Decode Message</h2>
+                <input type="file" id="encodedImageInput" accept="image/*">
+                <label for="encodedImageInput">Upload Encoded Image</label>
+                <span id="encodedImageFileName" class="file-name"></span> <!-- File name display -->
+                <button id="decodeButton">Decode</button>
+                <div class="output" id="decodedMessageContainer">
+                    <h3>Decoded Message:</h3>
+                    <p id="decodedMessage"></p>
+                </div>
+            </div>
+        </div>
+    </center>
+
+    <script>
+        // Function to load image
+        function loadImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Encode Image Function
+        async function encodeImage() {
+            const imageFile = document.getElementById('imageInput').files[0];
+            const message = document.getElementById('messageInput').value;
+            const outputContainer = document.getElementById('outputContainer');
+            const encodedDataElement = document.getElementById('encodedData');
+            const downloadButton = document.getElementById('downloadButton');
+
+            if (!imageFile || !message) {
+                alert("Please select an image and enter a message.");
+                return;
+            }
+
+            try {
+                const img = await loadImage(imageFile);
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Simple encoding logic: Use last pixel to store message length (max length: 255)
+                const messageLength = Math.min(message.length, 255);
+                data[data.length - 1] = messageLength; // Store length in the last pixel
+
+                // Encode message in the last few pixels
+                for (let i = 0; i < messageLength; i++) {
+                    data[i * 4] = message.charCodeAt(i); // Store ASCII values in the red channel
+                }
+
+                // Set modified image data back
+                ctx.putImageData(imageData, 0, 0);
+                const encodedImageUrl = canvas.toDataURL('image/png');
+
+                // Display encoded data and enable download
+                encodedDataElement.innerHTML = `<img src="${encodedImageUrl}" alt="Encoded Image" style="max-width: 100%;">`;
+                outputContainer.style.display = 'block';
+                downloadButton.style.display = 'inline-block'; // Show download button
+                downloadButton.onclick = () => {
+                    const link = document.createElement('a');
+                    link.href = encodedImageUrl;
+                    link.download = 'encoded_image.png';
+                    link.click();
+                };
+            } catch (error) {
+                console.error('Error encoding image:', error);
+                alert('Error encoding image: ' + error.message);
+            }
+        }
+
+        // Decode Image Function
+        async function decodeImage() {
+            const encodedImageFile = document.getElementById('encodedImageInput').files[0];
+            const decodedMessageContainer = document.getElementById('decodedMessageContainer');
+            const decodedMessageElement = document.getElementById('decodedMessage');
+
+            if (!encodedImageFile) {
+                alert("Please select an encoded image.");
+                return;
+            }
+
+            try {
+                const img = await loadImage(encodedImageFile);
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // Simple decoding logic: Read the last pixel to get message length
+                const messageLength = data[data.length - 1];
+                let decodedMessage = '';
+
+                // Read the encoded message from the first few pixels
+                for (let i = 0; i < messageLength; i++) {
+                    decodedMessage += String.fromCharCode(data[i * 4]); // Get ASCII values from the red channel
+                }
+
+                // Display the decoded message
+                decodedMessageElement.textContent = decodedMessage;
+                decodedMessageContainer.style.display = 'block';
+            } catch (error) {
+                console.error('Error decoding image:', error);
+                alert('Error decoding image: ' + error.message);
+            }
+        }
+
+        // Update file name display
+        function updateFileName(inputElement, displayElement) {
+            const file = inputElement.files[0];
+            if (file) {
+                displayElement.textContent = `File: ${file.name}`;
+            } else {
+                displayElement.textContent = '';
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('encodeButton').addEventListener('click', encodeImage);
+        document.getElementById('decodeButton').addEventListener('click', decodeImage);
+        document.getElementById('imageInput').addEventListener('change', function() {
+            updateFileName(this, document.getElementById('imageFileName'));
+        });
+        document.getElementById('encodedImageInput').addEventListener('change', function() {
+            updateFileName(this, document.getElementById('encodedImageFileName'));
+        });
+    </script>
+</body>
+</html>
